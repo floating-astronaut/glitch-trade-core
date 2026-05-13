@@ -98,12 +98,22 @@ def scale_trade(
     sl: Optional[float],
     lots: Optional[float],
     rules: FundingPipsZeroRules,
+    sizing_base: Optional[float] = None,
 ) -> SizingResult:
     """Return a scaled pnl such that the trade's $-risk targets
-    `rules.risk_per_trade_pct` of `balance`, capped by `risk_per_trade_pct_hard_cap`.
+    `rules.risk_per_trade_pct` of `sizing_base` (defaults to `balance`),
+    capped by `risk_per_trade_pct_hard_cap`.
+
+    Important: with a trailing-DD prop-firm rule, sizing off the current
+    balance is dangerous — early wins inflate position size, then a normal
+    loss eats more than the trailing-DD buffer above the new HWM. Pass
+    `sizing_base=min(starting_balance, current_balance)` to keep position
+    size bounded by the *original* account size, which is the right
+    behaviour for FundingPips-style accounts.
     """
-    target = balance * rules.risk_per_trade_pct
-    cap = balance * rules.risk_per_trade_pct_hard_cap
+    base = sizing_base if sizing_base is not None else balance
+    target = base * rules.risk_per_trade_pct
+    cap = base * rules.risk_per_trade_pct_hard_cap
 
     intended = estimate_trade_risk_usd(symbol, entry, sl, lots)
     if intended is None or intended <= 0:

@@ -11,9 +11,23 @@ Body text (if present) shown as indented sub-bullets.
 
 ---
 
+## 2026-05-14
+
+- **20:04 UTC** — backtest: tape-replay simulator with FundingPips Zero rule engine (`b7fbf97`) — 5 files
+    Reads closed trades from ml_trades chronologically, scales each trade's
+    $-risk to a configurable target (default 0.5% of starting balance,
+    hard cap 1%), and applies the resulting P&L to a VirtualAccount
+    governed by FundingPips Zero rules (3% daily, 5% trailing DD).
+    What it answers
+    ---------------
+    "If FundingPips Zero had been the broker and we'd risk-sized every
+    trade, would the engine have survived — and what's the breach trace?"
+    Package
+    -------
+
 ## 2026-05-13
 
-- **06:47 UTC** — auto-sync: 2026-05-13 06:47 UTC (`58ef180`) — 5 files
+- **06:47 UTC** — auto-sync: 2026-05-13 06:47 UTC (`654ac9a`) — 6 files
         A	backtest/__init__.py
         A	backtest/account.py
         A	backtest/rules/__init__.py
