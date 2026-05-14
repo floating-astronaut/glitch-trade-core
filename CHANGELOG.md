@@ -11,9 +11,18 @@ Body text (if present) shown as indented sub-bullets.
 
 ---
 
+## 2026-05-15
+
+- **02:47 UTC** — auto-sync: 2026-05-14 22:32 UTC (`a0bdc9e`) — 6 files
+        A	ctrader-store/trend-follower/GlitchTrendFollower.algo
+        A	ctrader-store/trend-follower/GlitchTrendFollowerBot.algo
+        A	ctrader-store/trend-follower/logo.png
+        A	ctrader-store/trend-follower/screenshots/screenshot-01-h1-chart.png
+        A	ctrader-store/trend-follower/screenshots/screenshot-03-parameters.png
+
 ## 2026-05-14
 
-- **22:03 UTC** — ctrader-store: first product family (Glitch Trend Follower) (`7360f0f`) — 5 files
+- **22:18 UTC** — ctrader-store: first product family (Glitch Trend Follower) (`8da32bf`) — 5 files
     Approved as official cTrader Store seller on 2026-05-13. This is the
     source tree for products we'll list there.
     trend-follower/
