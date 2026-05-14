@@ -13,7 +13,18 @@ Body text (if present) shown as indented sub-bullets.
 
 ## 2026-05-14
 
-- **20:04 UTC** — backtest: tape-replay simulator with FundingPips Zero rule engine (`b7fbf97`) — 5 files
+- **22:03 UTC** — ctrader-store: first product family (Glitch Trend Follower) (`7360f0f`) — 5 files
+    Approved as official cTrader Store seller on 2026-05-13. This is the
+    source tree for products we'll list there.
+    trend-follower/
+      GlitchTrendFollower.cs      indicator — vote + confidence series,
+                                  SMA/EMA crossover gated by ADX, ATR-modulated
+      GlitchTrendFollowerBot.cs   cBot — ATR-sized market orders, daily-loss
+                                  halt at 2.5% by default, never pyramids
+      LISTING.md                  paste-ready title, descriptions, tags,
+                                  screenshot brief, price floors ($19 / $39)
+    README.md catalogues the roadmap: mean-reverter, momentum-hunter,
+- **20:18 UTC** — backtest: tape-replay simulator with FundingPips Zero rule engine (`3ac8ab2`) — 5 files
     Reads closed trades from ml_trades chronologically, scales each trade's
     $-risk to a configurable target (default 0.5% of starting balance,
     hard cap 1%), and applies the resulting P&L to a VirtualAccount
