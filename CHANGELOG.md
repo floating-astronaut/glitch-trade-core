@@ -13,7 +13,18 @@ Body text (if present) shown as indented sub-bullets.
 
 ## 2026-05-15
 
-- **10:04 UTC** — backtest: add FTMO Challenge ruleset + static-DD support (`08f723d`) — 6 files
+- **10:28 UTC** — feat(ir,rules): Strategy IR v1 + 3 new firm rule sets (rev 4 week 1) (`fa13158`) — 9 files
+    IR (ir/schema.json + ir/__init__.py):
+      - JSON Schema for the load-bearing IR — instruments, indicators,
+        entries, exits, sizing, guards, optional webhook ingress
+      - Spans the spectrum: 1-block quick rule ("buy BTCUSD at 80000,
+        sell at 81000") up to multi-indicator prop-firm strategy with
+        partial TPs and news filters
+      - validate(ir) helper; uses jsonschema if available, soft-validates
+        required fields otherwise
+    Quick-rule parser (ir/quick_parse.py):
+      - Deterministic regex grammar (no LLM in v1) covering 4 patterns:
+- **10:18 UTC** — backtest: add FTMO Challenge ruleset + static-DD support (`72f71e5`) — 6 files
     Adds a second prop-firm ruleset alongside FundingPips Zero so we can
     A/B the engine against a friendlier rule profile. FTMO's headline
     differences:
