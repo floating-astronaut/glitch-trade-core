@@ -45,7 +45,39 @@ import sys
 import time
 import uuid
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Optional
+
+
+# ── Env loader (defensive) ──────────────────────────────────────────────────
+# A previous run had this script inherit an empty env even though the user
+# `set -a; . .env; set +a`'d the file — sudo -u under some configurations
+# strips inheritance. Belt-and-suspenders: if CTRADER_* aren't already in
+# os.environ, attempt to load from the standard ml_collector .env path
+# directly via python-dotenv (already in the collector's venv).
+def _ensure_ctrader_env() -> None:
+    if all(os.environ.get(k) for k in (
+        "CTRADER_CLIENT_ID", "CTRADER_CLIENT_SECRET",
+        "CTRADER_ACCESS_TOKEN", "CTRADER_ACCOUNT_ID",
+    )):
+        return
+    candidates = [
+        Path(os.environ.get("CTRADER_ENV_FILE", "")),
+        Path("/opt/glitch-ouroboros/ctrader/ml_collector/.env"),
+        Path("/opt/glitch-ouroboros/ctrader/.env"),
+    ]
+    for p in candidates:
+        if p and p.is_file():
+            try:
+                from dotenv import load_dotenv
+                load_dotenv(p, override=False)
+                logging.info("loaded env from %s", p)
+                return
+            except Exception as e:
+                logging.warning("dotenv load failed for %s: %s", p, e)
+
+
+_ensure_ctrader_env()
 
 # The CTraderPriceFeed source isn't installed as a package; bring it in
 # from /opt explicitly. Order matters — must precede the import.
@@ -231,6 +263,24 @@ def main(argv: list[str] | None = None) -> int:
         level=logging.DEBUG if args.verbose else logging.INFO,
         format="%(asctime)s [%(levelname)s] %(message)s",
     )
+
+    # Fail fast with a useful message if env still isn't populated after the
+    # _ensure_ctrader_env() loader at module import time. Saves the user from
+    # the silent "Symbol cache refresh failed: CH_CLIENT_AUTH_FAILURE" path.
+    missing = [k for k in (
+        "CTRADER_CLIENT_ID", "CTRADER_CLIENT_SECRET",
+        "CTRADER_ACCESS_TOKEN", "CTRADER_ACCOUNT_ID",
+    ) if not os.environ.get(k)]
+    if missing:
+        print(
+            f"\nERROR: cTrader credentials not in env: {', '.join(missing)}\n"
+            f"Try one of:\n"
+            f"  1. Set CTRADER_ENV_FILE=/path/to/.env and re-run\n"
+            f"  2. Run from /opt/glitch-ouroboros/ctrader/ml_collector/venv with cwd in that dir\n"
+            f"  3. Export CTRADER_CLIENT_ID/SECRET/ACCESS_TOKEN/ACCOUNT_ID inline\n",
+            file=sys.stderr,
+        )
+        return 2
 
     end_dt = datetime.fromisoformat(args.end) if args.end else datetime.now(timezone.utc)
     start_dt = end_dt - timedelta(days=365 * args.years)
