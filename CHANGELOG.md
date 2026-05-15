@@ -13,7 +13,18 @@ Body text (if present) shown as indented sub-bullets.
 
 ## 2026-05-15
 
-- **10:28 UTC** — feat(ir,rules): Strategy IR v1 + 3 new firm rule sets (rev 4 week 1) (`fa13158`) — 9 files
+- **10:41 UTC** — feat(ir): bar_replay adapter — IR runs through existing simulator (`9bb9a95`) — 3 files
+    ir/runner.py: dispatch by IR shape into the right execution path.
+    v1 covers the two shapes that match our seed templates:
+      1. trend-follower shape — indicators sma+ema+adx+atr with
+         crosses_above/below entries + stop_loss/partial_tp/trailing
+         exits. Builds TrendFollowerParams + ManagerParams from the
+         IR and dispatches to the existing run_sim path.
+      2. quick-rule shape — no indicators, single price-trigger entry,
+         single limit exit. Uses an in-module bar walker that triggers
+         entry/exit on intra-bar high/low touches.
+    Anything else raises UnsupportedIRShape (the general IR interpreter
+- **10:32 UTC** — feat(ir,rules): Strategy IR v1 + 3 new firm rule sets (rev 4 week 1) (`67e4821`) — 10 files
     IR (ir/schema.json + ir/__init__.py):
       - JSON Schema for the load-bearing IR — instruments, indicators,
         entries, exits, sizing, guards, optional webhook ingress
