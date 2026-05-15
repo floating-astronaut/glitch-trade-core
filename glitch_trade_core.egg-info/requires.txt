@@ -1,0 +1,8 @@
+numpy>=1.26
+jsonschema>=4.21
+
+[db]
+psycopg2-binary>=2.9
+
+[hpo]
+optuna>=4.0

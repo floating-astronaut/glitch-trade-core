@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "glitch-trade-core"
+version = "0.1.0"
+description = "Glitch Trade backtest engine, Strategy IR, prop-firm rule sets"
+readme = "README.md"
+requires-python = ">=3.12"
+authors = [{ name = "Glitch Executor Labs" }]
+dependencies = [
+  "numpy>=1.26",
+  "jsonschema>=4.21",
+]
+
+[project.optional-dependencies]
+db = ["psycopg2-binary>=2.9"]
+hpo = ["optuna>=4.0"]
+
+[tool.setuptools]
+# Two top-level packages: the bar-replay engine + the IR layer.
+packages = [
+  "backtest",
+  "backtest.bar_replay",
+  "backtest.rules",
+  "ir",
+]
+
+[tool.setuptools.package-data]
+ir = ["schema.json", "samples/*.json"]

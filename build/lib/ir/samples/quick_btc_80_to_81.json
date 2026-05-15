@@ -1,0 +1,18 @@
+{
+  "name": "BTC 80→81",
+  "description": "The canonical rev-4 quick-rule example: buy BTCUSD at 80000, sell at 81000.",
+  "version": 1,
+  "tags": ["quick-rule", "price-trigger"],
+  "instruments": [{"symbol": "BTCUSD", "timeframe": "tick"}],
+  "entries": [
+    {
+      "side": "long",
+      "when": "price >= 80000",
+      "size": {"fixed_units": 0.01}
+    }
+  ],
+  "exits": [
+    {"type": "limit", "when": "price >= 81000"}
+  ],
+  "guards": {"firm_rules": null}
+}

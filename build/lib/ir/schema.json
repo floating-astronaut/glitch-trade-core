@@ -1,0 +1,185 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://glitchexecutor.com/schemas/strategy-ir/v1.json",
+  "title": "Glitch Trade Strategy IR",
+  "description": "Intermediate representation for a tradeable strategy. The contract between the visual builder, the code editor, the compiler (IR → cAlgo C#), the backtester (bar_replay), the marketplace, and the firm-rule linter. Designed to span from a single-block conditional rule (\"buy BTCUSD at 80000, sell at 81000\") up to a multi-indicator prop-firm strategy with partial TPs and news filters.",
+  "type": "object",
+  "required": ["name", "version", "instruments", "entries", "exits"],
+  "additionalProperties": false,
+  "properties": {
+    "name":        {"type": "string", "minLength": 1, "maxLength": 120},
+    "description": {"type": "string", "maxLength": 2000},
+    "version":     {"type": "integer", "minimum": 1},
+    "author_user_id": {"type": ["string", "null"]},
+    "tags":        {"type": "array", "items": {"type": "string"}, "default": []},
+
+    "instruments": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["symbol"],
+        "additionalProperties": false,
+        "properties": {
+          "symbol":    {"type": "string", "minLength": 1, "examples": ["EURUSD", "BTCUSD", "JPN225", "XAUUSD"]},
+          "timeframe": {
+            "type": "string",
+            "enum": ["tick", "m1", "m5", "m15", "m30", "h1", "h4", "d1"],
+            "default": "h1"
+          }
+        }
+      }
+    },
+
+    "indicators": {
+      "type": "array", "default": [],
+      "items": {
+        "type": "object",
+        "required": ["id", "type"],
+        "additionalProperties": false,
+        "properties": {
+          "id":     {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+          "type":   {"type": "string", "enum": ["sma", "ema", "rsi", "adx", "atr", "macd", "bb", "stoch", "vwap"]},
+          "period": {"type": "integer", "minimum": 1, "maximum": 500},
+          "source": {"type": "string", "enum": ["close", "open", "high", "low", "hl2", "hlc3", "ohlc4"], "default": "close"},
+          "params": {"type": "object", "additionalProperties": true, "default": {}}
+        }
+      }
+    },
+
+    "entries": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["side", "when"],
+        "additionalProperties": false,
+        "properties": {
+          "side": {"type": "string", "enum": ["long", "short"]},
+          "when": {
+            "type": "string",
+            "description": "Boolean expression over indicator ids and price (e.g. 'ema_fast crosses_above ema_slow AND adx > 25', or 'price >= 80000').",
+            "minLength": 1
+          },
+          "size": {
+            "oneOf": [
+              {"type": "object", "required": ["fixed_units"], "additionalProperties": false,
+               "properties": {"fixed_units": {"type": "number", "exclusiveMinimum": 0}}},
+              {"type": "object", "required": ["fixed_lots"], "additionalProperties": false,
+               "properties": {"fixed_lots":  {"type": "number", "exclusiveMinimum": 0}}},
+              {"type": "object", "required": ["risk_per_trade_pct"], "additionalProperties": false,
+               "properties": {"risk_per_trade_pct": {"type": "number", "exclusiveMinimum": 0, "maximum": 0.05}}}
+            ],
+            "description": "If omitted, falls back to the top-level `sizing` block."
+          }
+        }
+      }
+    },
+
+    "exits": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "oneOf": [
+          {
+            "type": "object", "required": ["type"],
+            "properties": {
+              "type": {"const": "stop_loss"},
+              "spec": {
+                "oneOf": [
+                  {"type": "object", "required": ["atr_mult"], "additionalProperties": false,
+                   "properties": {"atr_mult": {"type": "number", "exclusiveMinimum": 0}}},
+                  {"type": "object", "required": ["price_offset"], "additionalProperties": false,
+                   "properties": {"price_offset": {"type": "number", "exclusiveMinimum": 0}}},
+                  {"type": "object", "required": ["pct"], "additionalProperties": false,
+                   "properties": {"pct": {"type": "number", "exclusiveMinimum": 0, "maximum": 0.1}}}
+                ]
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object", "required": ["type", "at_r", "fraction"],
+            "properties": {
+              "type":     {"const": "partial_tp"},
+              "at_r":     {"type": "number", "exclusiveMinimum": 0},
+              "fraction": {"type": "number", "exclusiveMinimum": 0, "maximum": 1}
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object", "required": ["type", "step_r"],
+            "properties": {
+              "type":   {"const": "trailing"},
+              "step_r": {"type": "number", "exclusiveMinimum": 0}
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object", "required": ["type"],
+            "properties": {
+              "type": {"const": "take_profit"},
+              "at_r": {"type": "number", "exclusiveMinimum": 0}
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object", "required": ["type", "when"],
+            "properties": {
+              "type": {"const": "limit"},
+              "when": {"type": "string", "minLength": 1, "description": "Boolean expression that closes the position when true (e.g. 'price >= 81000')."}
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object", "required": ["type", "max_bars"],
+            "properties": {
+              "type": {"const": "time_stop"},
+              "max_bars": {"type": "integer", "minimum": 1}
+            },
+            "additionalProperties": false
+          }
+        ]
+      }
+    },
+
+    "sizing": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "risk_per_trade_pct": {"type": "number", "exclusiveMinimum": 0, "maximum": 0.05}
+      },
+      "default": {"risk_per_trade_pct": 0.005}
+    },
+
+    "guards": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "firm_rules": {
+          "type": ["string", "null"],
+          "enum": [null, "fundingpips_zero", "ftmo", "mff", "apex", "the5ers"],
+          "description": "Which firm's rule set the linter / live runner should enforce. Null = no firm guards (casual trader)."
+        },
+        "block_news_minutes": {"type": "integer", "minimum": 0, "maximum": 60, "default": 0},
+        "no_weekend_hold":    {"type": "boolean", "default": false},
+        "max_open_positions": {"type": "integer", "minimum": 1, "maximum": 50, "default": 1},
+        "session_filter": {
+          "type": "object", "additionalProperties": false,
+          "properties": {
+            "include_sessions": {"type": "array", "items": {"type": "string", "enum": ["asia", "london", "ny"]}}
+          }
+        }
+      },
+      "default": {"firm_rules": null}
+    },
+
+    "webhook": {
+      "type": "object", "additionalProperties": false,
+      "description": "Optional. If present, the strategy can also be triggered by an inbound TradingView-style JSON POST to /v1/webhook/:user/:strategy.",
+      "properties": {
+        "enabled": {"type": "boolean", "default": false},
+        "secret":  {"type": ["string", "null"], "description": "Shared secret the inbound payload must include."},
+        "mapping": {
+          "type": "object", "additionalProperties": true,
+          "description": "Mapping of inbound JSON keys to IR signal types. e.g. {\"action\": {\"buy\": \"entry.long\", \"sell\": \"exit.all\"}}."
+        }
+      }
+    }
+  }
+}
