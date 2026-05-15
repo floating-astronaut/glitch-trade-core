@@ -180,6 +180,9 @@ def _run_quick_rule(ir: dict[str, Any], rules: Rules,
 
     trades_done = 0
     in_position = False
+    pending_positions = 0          # opened but never closed (capital frozen)
+    pending_open_ts = None
+    last_close_price = None         # for unrealised-PnL estimate at end
     for i in range(bars.size):
         if acc.terminated:
             break
@@ -188,12 +191,15 @@ def _run_quick_rule(ir: dict[str, Any], rules: Rules,
             continue
         bar_high = h[i]
         bar_low  = l[i]
+        last_close_price = float(bars[i]["c"])
 
         if not in_position:
             triggered = (rule.side == "long"  and bar_high >= rule.entry_price) or \
                         (rule.side == "short" and bar_low  <= rule.entry_price)
             if triggered:
                 in_position = True
+                pending_positions += 1
+                pending_open_ts = ts
         else:
             hit_target = (rule.side == "long"  and bar_high >= rule.exit_price) or \
                          (rule.side == "short" and bar_low  <= rule.exit_price)
@@ -204,6 +210,7 @@ def _run_quick_rule(ir: dict[str, Any], rules: Rules,
                 acc.record_close(ts, usd_pnl)
                 trades_done += 1
                 in_position = False
+                pending_positions -= 1
 
     if not acc.terminated and bars.size:
         last_ts = bars["t"][-1].astype("M8[s]").astype("O").replace(tzinfo=timezone.utc)
@@ -216,6 +223,32 @@ def _run_quick_rule(ir: dict[str, Any], rules: Rules,
     )
     pct_from_hwm = (acc.balance - acc.equity_hwm) / acc.equity_hwm if acc.equity_hwm else 0.0
 
+    # Unrealised PnL of any still-open position at end of bars. The quick-rule
+    # has no SL, so a position opened at rule.entry_price sits there forever
+    # waiting for rule.exit_price. We mark-to-market against the last close.
+    unrealised_pnl = 0.0
+    if pending_positions > 0 and last_close_price is not None:
+        price_diff = (last_close_price - rule.entry_price) if rule.side == "long" \
+                     else (rule.entry_price - last_close_price)
+        unrealised_pnl = price_diff * point_value * rule.fixed_units
+
+    # Honesty heuristics: warn the operator (and the SPA) when a backtest
+    # looks artificially clean for known reasons.
+    warnings: list[str] = []
+    has_sl = any(ex.get("type") == "stop_loss" for ex in ir.get("exits", []))
+    if not has_sl and pending_positions > 0:
+        warnings.append(
+            f"This rule has no stop-loss. {pending_positions} position(s) opened during the "
+            f"backtest are still open at end of period — capital frozen until price returns to "
+            f"the exit. Mark-to-market unrealised PnL: ${unrealised_pnl:,.2f}."
+        )
+    if not has_sl and trades_done > 0 and max_day_loss_pct == 0:
+        warnings.append(
+            "0% max day loss only because the rule has no stop-loss — losing positions are "
+            "never closed, so they don't count against the daily-loss meter. Add a stop to "
+            "stress-test honestly."
+        )
+
     return {
         "passes": (not summary["terminated"]
                    and summary["total_pnl_pct"] >= rules.min_withdraw_total_pct),
@@ -227,6 +260,9 @@ def _run_quick_rule(ir: dict[str, Any], rules: Rules,
         "pct_from_hwm": pct_from_hwm,
         "trades": trades_done,
         "trades_capped": 0,
+        "pending_positions": pending_positions,
+        "unrealised_pnl": unrealised_pnl,
+        "warnings": warnings,
         "days_traded": summary["days_traded"],
         "profitable_days": summary["profitable_days"],
         "ending_balance": summary["ending_balance"],
@@ -264,6 +300,10 @@ def run_ir(ir: dict[str, Any], *,
         result = run_sim(cfg)
         result["config"]["ir_name"]  = ir["name"]
         result["config"]["shape"]    = "trend-follower"
+        # Unified shape so the SPA always sees the same fields.
+        result.setdefault("pending_positions", 0)
+        result.setdefault("unrealised_pnl", 0.0)
+        result.setdefault("warnings", [])
         return result
 
     if _is_quick_shape(ir):

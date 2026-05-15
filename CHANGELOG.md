@@ -13,7 +13,18 @@ Body text (if present) shown as indented sub-bullets.
 
 ## 2026-05-15
 
-- **18:03 UTC** — chore: ignore build/ wheel artifacts (`01e9e2f`) — 31 files
+- **21:33 UTC** — fix(ir/runner): honest backtest — track unclosed positions + warnings (`1a0248e`) — 2 files
+    Quick-rule shape now reports:
+      - pending_positions  (count of opened-but-not-closed positions)
+      - unrealised_pnl     (mark-to-market against last close price)
+      - warnings           (operator-readable explanations)
+    The quick-rule has no stop-loss, so a position opened at the entry
+    price sits there forever waiting for the exit price. Previously the
+    simulator silently ignored these, producing artificially clean
+    results: "5295 trades, 0% max day loss, 446/458 profitable days" —
+    because losing positions were never closed and never counted.
+    Two heuristic warnings fire automatically:
+- **18:20 UTC** — chore: ignore build/ wheel artifacts (`fe9277a`) — 31 files
 - **11:02 UTC** — feat(ir): IR → cAlgo C# compiler (week 3) (`03cb12b`) — 3 files
     ir/compile.py turns a Strategy IR into a complete cAlgo cBot source
     file the user can drop into cTrader Desktop. Two shapes covered,
