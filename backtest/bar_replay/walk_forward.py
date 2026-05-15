@@ -33,6 +33,7 @@ from typing import Optional
 import optuna
 from optuna.samplers import TPESampler
 
+from ..rules import RULESETS, FUNDINGPIPS_ZERO
 from .bars import BarsRequest, load_bars
 from .manager import ManagerParams
 from .sim import SimConfig, run_sim
@@ -58,14 +59,15 @@ def _split(start: datetime, end: datetime, train_frac: float
 
 
 def make_train_objective(symbol: str, timeframe: str,
-                         train_start: datetime, train_end: datetime):
+                         train_start: datetime, train_end: datetime,
+                         rules=FUNDINGPIPS_ZERO):
     def objective(trial: optuna.Trial) -> float:
         cfg = _build_cfg(symbol, timeframe, trial)
-        # SimConfig is frozen; rebuild with the train window.
+        # SimConfig is frozen; rebuild with the train window + chosen rule set.
         cfg = SimConfig(
             symbol=cfg.symbol, timeframe=cfg.timeframe,
             start=train_start, end=train_end,
-            starting_balance=cfg.starting_balance, rules=cfg.rules,
+            starting_balance=cfg.starting_balance, rules=rules,
             strategy=cfg.strategy, manager=cfg.manager,
         )
         result = run_sim(cfg)
@@ -86,13 +88,17 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--seed",       type=int,   default=42)
     p.add_argument("--jobs",       type=int,   default=1)
     p.add_argument("--out",        help="JSON output path for validated winners")
+    p.add_argument("--ruleset",    default="fundingpips_zero",
+                   choices=sorted(RULESETS),
+                   help="Prop-firm rule set to evaluate against (default: fundingpips_zero)")
     args = p.parse_args(argv)
+    rules = RULESETS[args.ruleset]
 
     full_start, full_end = _bar_window(args.symbol, args.timeframe)
     (train_start, train_end), (test_start, test_end) = _split(
         full_start, full_end, args.train_frac
     )
-    print(f"\n=== walk-forward {args.symbol} {args.timeframe} ===")
+    print(f"\n=== walk-forward {args.symbol} {args.timeframe} ({rules.name}) ===")
     print(f"  train: {train_start.date()} → {train_end.date()}")
     print(f"  test:  {test_start.date()} → {test_end.date()}")
     print(f"  trials on train: {args.trials}")
@@ -103,7 +109,8 @@ def main(argv: list[str] | None = None) -> int:
         sampler=TPESampler(seed=args.seed, n_startup_trials=20),
     )
     study.optimize(
-        make_train_objective(args.symbol, args.timeframe, train_start, train_end),
+        make_train_objective(args.symbol, args.timeframe,
+                             train_start, train_end, rules=rules),
         n_trials=args.trials,
         n_jobs=args.jobs,
         show_progress_bar=False,
@@ -126,6 +133,7 @@ def main(argv: list[str] | None = None) -> int:
         cfg = SimConfig(
             symbol=args.symbol, timeframe=args.timeframe,
             start=test_start, end=test_end,
+            rules=rules,
             manager=ManagerParams(
                 sl_atr_mult     = t.params["sl_atr_mult"],
                 tp1_r           = t.params["tp1_r"],

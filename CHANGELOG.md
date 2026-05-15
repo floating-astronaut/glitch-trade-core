@@ -13,7 +13,18 @@ Body text (if present) shown as indented sub-bullets.
 
 ## 2026-05-15
 
-- **08:48 UTC** — auto-sync: 2026-05-15 08:03 UTC (`ed9d1a4`) — 2 files
+- **10:04 UTC** — backtest: add FTMO Challenge ruleset + static-DD support (`08f723d`) — 6 files
+    Adds a second prop-firm ruleset alongside FundingPips Zero so we can
+    A/B the engine against a friendlier rule profile. FTMO's headline
+    differences:
+                                  FTMO Phase 1   FundingPips Zero
+        Max overall drawdown      10 % STATIC    5 % TRAILING
+        Max daily loss            5 %            3 %
+        Profit target to pass     10 %           4 %
+        Min trading days          0              n/a
+        Min profitable days       0              7 / 30
+        Best-day consistency      none           ≤ 15 % of total profit
+- **09:03 UTC** — auto-sync: 2026-05-15 08:03 UTC (`e41ff0f`) — 2 files
         M	backtest/bar_replay/ctrader_backfill.py
 - **07:56 UTC** — backtest/ctrader_backfill: auto-load .env via dotenv; fail fast on missing creds (`291be5b`) — 1 file
     Previous run inherited an empty env even after `set -a; . .env` because

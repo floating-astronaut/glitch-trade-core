@@ -93,8 +93,14 @@ class VirtualAccount:
 
     @property
     def trailing_dd_threshold(self) -> float:
-        """Equity below this $ → terminated."""
-        return self.equity_hwm * (1 - self.rules.max_trailing_dd_pct)
+        """Equity below this $ → terminated. Reference is the equity HWM
+        (trailing) by default. If the rule set sets `drawdown_is_static =
+        True` (e.g. FTMO), we pin the reference at the original starting
+        balance — so winning streaks don't tighten the breach buffer."""
+        ref = (self.starting_balance
+               if getattr(self.rules, "drawdown_is_static", False)
+               else self.equity_hwm)
+        return ref * (1 - self.rules.max_trailing_dd_pct)
 
     @property
     def soft_halt_threshold(self) -> float:

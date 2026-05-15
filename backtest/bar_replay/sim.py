@@ -20,7 +20,7 @@ from typing import Optional
 import numpy as np
 
 from ..account import VirtualAccount
-from ..rules import FUNDINGPIPS_ZERO, FundingPipsZeroRules
+from ..rules import FUNDINGPIPS_ZERO, Rules
 from ..sizer import POINT_VALUE_USD_PER_LOT
 from .bars import BarsRequest, load_bars
 from .strategy import TrendFollowerParams, run_trend_follower
@@ -34,7 +34,7 @@ class SimConfig:
     start: Optional[datetime] = None
     end: Optional[datetime] = None
     starting_balance: float = 25_000
-    rules: FundingPipsZeroRules = FUNDINGPIPS_ZERO
+    rules: Rules = FUNDINGPIPS_ZERO
     strategy: TrendFollowerParams = TrendFollowerParams()
     manager: ManagerParams = ManagerParams()
 
