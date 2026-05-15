@@ -13,7 +13,27 @@ Body text (if present) shown as indented sub-bullets.
 
 ## 2026-05-15
 
-- **10:41 UTC** — feat(ir): bar_replay adapter — IR runs through existing simulator (`9bb9a95`) — 3 files
+- **18:03 UTC** — chore: ignore build/ wheel artifacts (`01e9e2f`) — 31 files
+- **11:02 UTC** — feat(ir): IR → cAlgo C# compiler (week 3) (`03cb12b`) — 3 files
+    ir/compile.py turns a Strategy IR into a complete cAlgo cBot source
+    file the user can drop into cTrader Desktop. Two shapes covered,
+    matching what ir/runner.py can already backtest:
+      - trend-follower shape: uses the hand-written
+        ctrader-store/trend-follower/GlitchTrendFollowerBot.cs as a
+        parameter-substitution template. Indicator periods, ADX threshold,
+        stop_loss/take_profit values, sides, and label all override the
+        template's DefaultValue= attributes from the IR. Backtest ↔ live
+        parity is structural (same code runs in both places).
+      - quick-rule shape: emits a small standalone cBot from an inline
+- **10:57 UTC** — chore: ignore *.egg-info build artifacts (`e0c5749`) — 5 files
+- **10:57 UTC** — build: add pyproject.toml so glitch-trade-core is pip-installable (`7b44b7e`) — 34 files
+    Adds a minimal pyproject.toml exposing the two top-level packages
+    (backtest + ir) and bundling ir/schema.json + samples as package
+    data so wheels include them. Required by glitch-trade-api week 2,
+    which installs glitch-trade-core into its venv to back the new
+    /v1/backtest endpoint.
+    Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+- **10:47 UTC** — feat(ir): bar_replay adapter — IR runs through existing simulator (`12da5e3`) — 4 files
     ir/runner.py: dispatch by IR shape into the right execution path.
     v1 covers the two shapes that match our seed templates:
       1. trend-follower shape — indicators sma+ema+adx+atr with
