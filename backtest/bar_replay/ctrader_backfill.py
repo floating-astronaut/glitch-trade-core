@@ -56,28 +56,92 @@ from typing import Optional
 # os.environ, attempt to load from the standard ml_collector .env path
 # directly via python-dotenv (already in the collector's venv).
 def _ensure_ctrader_env() -> None:
-    if all(os.environ.get(k) for k in (
-        "CTRADER_CLIENT_ID", "CTRADER_CLIENT_SECRET",
-        "CTRADER_ACCESS_TOKEN", "CTRADER_ACCOUNT_ID",
-    )):
+    """Load broker credentials. The ml_collector .env uses ML_-prefixed
+    names (`ML_CTRADER_CLIENT_ID`, …, `ML_PRICE_FEED_ACCOUNT_ID`) while
+    CTraderPriceFeed reads the bare `CTRADER_*` names. We bridge both."""
+    required = ("CTRADER_CLIENT_ID", "CTRADER_CLIENT_SECRET",
+                "CTRADER_ACCESS_TOKEN", "CTRADER_ACCOUNT_ID")
+    if all(os.environ.get(k) for k in required):
         return
+
     candidates = [
         Path(os.environ.get("CTRADER_ENV_FILE", "")),
         Path("/opt/glitch-ouroboros/ctrader/ml_collector/.env"),
         Path("/opt/glitch-ouroboros/ctrader/.env"),
     ]
+    src = None
     for p in candidates:
         if p and p.is_file():
             try:
                 from dotenv import load_dotenv
                 load_dotenv(p, override=False)
-                logging.info("loaded env from %s", p)
-                return
+                src = str(p)
+                break
             except Exception as e:
                 logging.warning("dotenv load failed for %s: %s", p, e)
 
+    # Bridge ml_collector → CTraderPriceFeed naming
+    bridge = {
+        "CTRADER_CLIENT_ID":     "ML_CTRADER_CLIENT_ID",
+        "CTRADER_CLIENT_SECRET": "ML_CTRADER_CLIENT_SECRET",
+        "CTRADER_ACCESS_TOKEN":  "ML_CTRADER_ACCESS_TOKEN",
+        # Bars don't need a TRADING account; ml_collector keeps a dedicated
+        # read-only price-feed account id for exactly this purpose.
+        "CTRADER_ACCOUNT_ID":    "ML_PRICE_FEED_ACCOUNT_ID",
+    }
+    for canonical, prefixed in bridge.items():
+        if not os.environ.get(canonical) and os.environ.get(prefixed):
+            os.environ[canonical] = os.environ[prefixed]
+
+    if src and all(os.environ.get(k) for k in required):
+        logging.info("loaded cTrader creds from %s (bridged ML_* names)", src)
+
+
+def _refresh_access_token_if_possible() -> None:
+    """cTrader Open API access tokens last ~30 days. If we have a refresh
+    token, swap it for a fresh access token in-process. We do NOT persist
+    the new token back to .env — that's the operator's call (a re-run of
+    the collector or a manual rewrite). For a backfill that just needs an
+    hour of validity, the in-process swap is plenty."""
+    refresh = os.environ.get("CTRADER_REFRESH_TOKEN") \
+              or os.environ.get("ML_CTRADER_REFRESH_TOKEN")
+    cid     = os.environ.get("CTRADER_CLIENT_ID")
+    csec    = os.environ.get("CTRADER_CLIENT_SECRET")
+    if not (refresh and cid and csec):
+        return
+    try:
+        import urllib.request
+        import urllib.parse
+        import json
+        body = urllib.parse.urlencode({
+            "grant_type":    "refresh_token",
+            "refresh_token": refresh,
+            "client_id":     cid,
+            "client_secret": csec,
+        }).encode("utf-8")
+        req = urllib.request.Request(
+            "https://openapi.ctrader.com/apps/token",
+            data=body,
+            headers={"Accept": "application/json",
+                     "Content-Type": "application/x-www-form-urlencoded"},
+        )
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            payload = json.loads(resp.read().decode("utf-8"))
+    except Exception as e:
+        logging.warning("token refresh failed: %s — proceeding with existing token", e)
+        return
+    new_access = payload.get("accessToken") or payload.get("access_token")
+    if new_access:
+        os.environ["CTRADER_ACCESS_TOKEN"] = new_access
+        logging.info("refreshed cTrader access token (in-process only; "
+                     "remember to update .env if you want it persisted)")
+    new_refresh = payload.get("refreshToken") or payload.get("refresh_token")
+    if new_refresh:
+        os.environ["CTRADER_REFRESH_TOKEN"] = new_refresh
+
 
 _ensure_ctrader_env()
+_refresh_access_token_if_possible()
 
 # The CTraderPriceFeed source isn't installed as a package; bring it in
 # from /opt explicitly. Order matters — must precede the import.
@@ -256,8 +320,16 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--timeframe", default="h1")
     p.add_argument("--years",     type=int, default=3)
     p.add_argument("--end",       help="ISO end date (default now)")
+    p.add_argument("--live", dest="live", action="store_true",
+                   help="Connect to live cTrader host (default: demo). "
+                        "The engine's accounts are demo so the default is what you want.")
+    p.add_argument("--demo", dest="live", action="store_false")
+    p.set_defaults(live=False)
     p.add_argument("--verbose",   action="store_true")
     args = p.parse_args(argv)
+    # CTraderPriceFeed picks the host from env: if "false" → demo. Set it
+    # before constructing HistoricalFeed so the dial happens at the right host.
+    os.environ["CTRADER_LIVE"] = "true" if args.live else "false"
 
     logging.basicConfig(
         level=logging.DEBUG if args.verbose else logging.INFO,

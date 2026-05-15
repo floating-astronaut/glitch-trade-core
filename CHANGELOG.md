@@ -13,7 +13,31 @@ Body text (if present) shown as indented sub-bullets.
 
 ## 2026-05-15
 
-- **07:47 UTC** — auto-sync: 2026-05-15 07:47 UTC (`cfb26bd`) — 1 file
+- **08:48 UTC** — auto-sync: 2026-05-15 08:03 UTC (`ed9d1a4`) — 2 files
+        M	backtest/bar_replay/ctrader_backfill.py
+- **07:56 UTC** — backtest/ctrader_backfill: auto-load .env via dotenv; fail fast on missing creds (`291be5b`) — 1 file
+    Previous run inherited an empty env even after `set -a; . .env` because
+    sudo -u under some configs strips inheritance. Now the script:
+      1. At import time, if CTRADER_* aren't already set, loads the standard
+         ml_collector .env path via python-dotenv (already in the collector
+         venv).
+      2. At main() entry, if any of the four required env vars are still
+         missing, prints a clear error with three remediation paths and
+         exits 2 — instead of silently failing on the broker auth call.
+    Also accepts CTRADER_ENV_FILE=/path/to/.env to point at a non-default
+    location.
+- **07:52 UTC** — backtest: cTrader Open API historical bar backfill into ml_bars (`b99a5ba`) — 1 file
+    Subclasses the existing CTraderPriceFeed (in /opt/glitch-ouroboros/
+    ctrader/ensemble) to add explicit (from_ts, to_ts) trendbar fetches and
+    a backward-paginating loop. Pages 4000 bars at a time (cTrader caps at
+    ~5000), sleeps 0.4s between calls, dedupes on the (symbol, timeframe,
+    bar_time) UPSERT.
+    Idempotent — re-running on a populated DB is a no-op for existing rows.
+    The unique index `ux_ml_bars_sym_tf_time` is created on first run if
+    missing.
+    Why
+    ---
+- **07:47 UTC** — auto-sync: 2026-05-15 07:47 UTC (`e143eba`) — 2 files
         A	backtest/bar_replay/walk_forward.py
 - **07:35 UTC** — backtest/bar_replay: phase 2 simulator + Optuna HPO sweep (`0c4291b`) — 1 file
     Replaces the dead-end "this engine cannot pass FundingPips Zero" verdict
