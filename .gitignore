@@ -40,3 +40,4 @@ ml_models/
 Thumbs.db
 .idea/
 .vscode/
+*.egg-info/
