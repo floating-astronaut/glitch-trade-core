@@ -13,7 +13,9 @@ Body text (if present) shown as indented sub-bullets.
 
 ## 2026-05-15
 
-- **02:47 UTC** — auto-sync: 2026-05-14 22:32 UTC (`a0bdc9e`) — 6 files
+- **07:04 UTC** — auto-sync: 2026-05-15 03:18 UTC (`c6a19dd`) — 2 files
+        A	ctrader-store/trend-follower/screenshots/screenshot-02-confidence-buckets.png
+- **03:03 UTC** — auto-sync: 2026-05-14 22:32 UTC (`644ac38`) — 6 files
         A	ctrader-store/trend-follower/GlitchTrendFollower.algo
         A	ctrader-store/trend-follower/GlitchTrendFollowerBot.algo
         A	ctrader-store/trend-follower/logo.png
