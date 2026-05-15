@@ -1,23 +1,30 @@
 """
-GetLeveraged — Turbo challenge rule set (PROVISIONAL).
+GetLeveraged — Turbo challenge rule set.
 
 Sourced 2026-05-15 from operator's $5 GetLeveraged Turbo Simulation
-challenge — account label "Leveraged — Simulation Turbo — Tejas Karan
-Agrawal", login 180343, server GetLeveraged-Trade, balance $50,000,
-leverage 30x.
+challenge — confirmed from the welcome / objectives page after sign-up
+(verbatim copy in commit message). Account label "Leveraged —
+Simulation Turbo — Tejas Karan Agrawal", login 180343, server
+GetLeveraged-Trade, working capital $50,000, leverage 30x.
 
-⚠️ NUMBERS BELOW ARE INDUSTRY-STANDARD DEFAULTS FOR "TURBO" PROP
-   CHALLENGES, NOT CONFIRMED FROM GETLEVERAGED'S OWN DOCS — their
-   site (getleveraged.io) was unreachable from the trade-api box at
-   build time. Confirm these against the live challenge dashboard
-   before relying on them for breach math:
+Marketing positioning ("Pass first. Pay later. One phase. Unlimited
+time."):
+  - One-phase evaluation, no time limit, no minimum trading days
+  - Fee deferred — only charged after passing
+  - Payouts: Revolut / VISA / Mastercard / wire / crypto
 
-     getleveraged.io/challenge-rules   (or wherever the challenge
-     T&Cs live for the Turbo variant)
+What that means for the simulator: the rule set is structurally close
+to FundingPips Zero (trailing DD, no min trading days) but with
+slightly looser daily floor (3% vs FP-Zero's 3% — same actually) and
+lower target (6% vs FP-Zero's 4% withdraw floor — actually higher).
+The unlimited time + no min days means the simulator's
+min_trades_per_30_days check is purely informational — there's no
+firm-imposed clock.
 
-   Then update this file. The rule names match every other rule set
-   in this package so the simulator, sweep, and routes/firms.py all
-   pick it up without further code changes.
+Key structural choice: **drawdown_is_static = False** (trailing).
+This is the hard one — every 1% of profit tightens the breach buffer
+because the trailing reference ratchets up with HWM. Plan
+strategies accordingly.
 """
 from __future__ import annotations
 
@@ -27,21 +34,21 @@ from dataclasses import dataclass, field
 @dataclass(frozen=True)
 class GetLeveragedTurboRules:
     # ── Hard breaches (account immediately failed) ──────────────────────
-    max_daily_loss_pct: float = 0.04            # 4 % of day-open balance (industry standard for turbo)
-    max_trailing_dd_pct: float = 0.06           # 6 % static off starting (turbo = tighter than standard)
+    max_daily_loss_pct: float = 0.03            # 3 % of day-open balance (verbatim from T&Cs)
+    max_trailing_dd_pct: float = 0.06           # 6 % TRAILING off equity HWM (verbatim from T&Cs)
 
     # ── Payout / progression rules ──────────────────────────────────────
     profit_cushion_pct: float = 0.0
-    min_withdraw_total_pct: float = 0.08        # 8 % profit target to pass turbo
+    min_withdraw_total_pct: float = 0.06        # 6 % profit target to pass (verbatim from T&Cs)
 
-    # ── Consistency & activity ──────────────────────────────────────────
-    max_best_day_share_of_profit: float = 1.0   # turbo variants often disable consistency rule
+    # ── Consistency & activity (T&Cs explicitly say "no min trading days") ─
+    max_best_day_share_of_profit: float = 1.0   # not enforced
     min_profitable_days_per_30: int = 0
     min_profitable_day_pct: float = 0.0
-    min_trades_per_30_days: int = 3             # min 3 trading days for turbo
+    min_trades_per_30_days: int = 0             # T&Cs: "Minimum Trading Days: 0"
 
     # ── Trading restrictions ────────────────────────────────────────────
-    hold_over_weekend: bool = True              # turbo challenges typically allow
+    hold_over_weekend: bool = True              # turbo allows; verify if exotic asset restrictions apply
     block_minutes_around_news: int = 0          # not enforced on turbo
 
     # ── Economic terms (reporting only) ─────────────────────────────────
@@ -53,10 +60,12 @@ class GetLeveragedTurboRules:
     # ── Simulator overlay knobs (same shape as other rule sets) ─────────
     risk_per_trade_pct: float = 0.005
     risk_per_trade_pct_hard_cap: float = 0.01
-    soft_halt_daily_loss_pct: float = 0.03      # halt 1 % before 4 % breach
+    soft_halt_daily_loss_pct: float = 0.02      # halt 1 % before 3 % breach
 
-    # ── Static DD off starting balance (typical for turbo) ──────────────
-    drawdown_is_static: bool = True
+    # ── TRAILING DD off equity HWM (NOT static) ─────────────────────────
+    # Same posture as FundingPips Zero — every 1% of profit tightens the
+    # breach buffer. Test strategies expecting this.
+    drawdown_is_static: bool = False
 
     name: str = field(default="GetLeveraged — Turbo Simulation")
 

@@ -11,9 +11,34 @@ Body text (if present) shown as indented sub-bullets.
 
 ---
 
+## 2026-05-16
+
+- **02:48 UTC** — fix(rules/getleveraged): replace provisional defaults with verbatim T&Cs (`ef8198c`) — 2 files
+    Operator pasted the real GetLeveraged Turbo objectives. Material
+    differences from my earlier industry-default guesses:
+      - Profit target:    8 % → 6 %
+      - Max daily loss:   4 % → 3 %
+      - Max DD:           static → TRAILING (off equity HWM)
+      - Min trading days: 3   → 0 (T&Cs say "Minimum Trading Days: 0")
+    The trailing-DD switch is the most important — every 1 % of profit
+    tightens the breach buffer because the reference ratchets up with
+    HWM, same posture as FundingPips Zero (structurally the hardest
+    mainstream variant). Strategies that pass GetLeveraged Turbo are
+
 ## 2026-05-15
 
-- **21:33 UTC** — fix(ir/runner): honest backtest — track unclosed positions + warnings (`1a0248e`) — 2 files
+- **21:51 UTC** — feat(rules): GetLeveraged Turbo Simulation rule set (provisional) (`3e5ae5d`) — 2 files
+    Sixth firm in the catalogue. Driven by operator's $5 GetLeveraged Turbo
+    challenge (account 180343, server GetLeveraged-Trade, balance \$50k,
+    leverage 30x — verified via MetaApi adapter against account_id
+    c4865984-44d2-47ec-bcf5-ffe7efc79261).
+    Numbers are INDUSTRY-STANDARD defaults for turbo-style fast-pass
+    challenges (8% target / 4% daily / 6% static DD / no consistency
+    rule / weekend hold allowed / no news blackout) — getleveraged.io
+    was unreachable from the trade-api box at build time so the file
+    is clearly marked PROVISIONAL with a TODO to confirm against the
+    challenge T&Cs before relying on breach math.
+- **21:48 UTC** — fix(ir/runner): honest backtest — track unclosed positions + warnings (`e9a8c79`) — 2 files
     Quick-rule shape now reports:
       - pending_positions  (count of opened-but-not-closed positions)
       - unrealised_pnl     (mark-to-market against last close price)
