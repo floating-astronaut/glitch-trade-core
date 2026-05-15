@@ -13,7 +13,14 @@ Body text (if present) shown as indented sub-bullets.
 
 ## 2026-05-15
 
-- **07:04 UTC** — auto-sync: 2026-05-15 03:18 UTC (`c6a19dd`) — 2 files
+- **07:33 UTC** — auto-sync: 2026-05-15 07:33 UTC (`eb78727`) — 6 files
+        A	backtest/bar_replay/__init__.py
+        A	backtest/bar_replay/bars.py
+        A	backtest/bar_replay/indicators.py
+        A	backtest/bar_replay/manager.py
+        A	backtest/bar_replay/sim.py
+        ... (+1 more)
+- **07:17 UTC** — auto-sync: 2026-05-15 03:18 UTC (`01e50d6`) — 2 files
         A	ctrader-store/trend-follower/screenshots/screenshot-02-confidence-buckets.png
 - **03:03 UTC** — auto-sync: 2026-05-14 22:32 UTC (`644ac38`) — 6 files
         A	ctrader-store/trend-follower/GlitchTrendFollower.algo
