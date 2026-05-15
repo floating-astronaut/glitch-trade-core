@@ -13,7 +13,20 @@ Body text (if present) shown as indented sub-bullets.
 
 ## 2026-05-15
 
-- **07:33 UTC** — auto-sync: 2026-05-15 07:33 UTC (`eb78727`) — 6 files
+- **07:47 UTC** — auto-sync: 2026-05-15 07:47 UTC (`cfb26bd`) — 1 file
+        A	backtest/bar_replay/walk_forward.py
+- **07:35 UTC** — backtest/bar_replay: phase 2 simulator + Optuna HPO sweep (`0c4291b`) — 1 file
+    Replaces the dead-end "this engine cannot pass FundingPips Zero" verdict
+    from the tape-replay (Phase 1) with a working pipeline that finds
+    shippable cBot parameters by automated search.
+    Pipeline
+    --------
+      ml_bars (Postgres)
+        → bars.py             OHLC loader, m1 → any tf via UTC-aligned aggregation
+        → indicators.py       SMA / EMA / ADX / ATR / rolling-median (numpy-only,
+                              mirrors cAlgo math 1:1 so sim results match what
+                              buyers see in cTrader Desktop backtests)
+- **07:33 UTC** — auto-sync: 2026-05-15 07:33 UTC (`ab47c35`) — 7 files
         A	backtest/bar_replay/__init__.py
         A	backtest/bar_replay/bars.py
         A	backtest/bar_replay/indicators.py
