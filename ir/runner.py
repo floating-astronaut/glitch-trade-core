@@ -249,6 +249,25 @@ def _run_quick_rule(ir: dict[str, Any], rules: Rules,
             "stress-test honestly."
         )
 
+    # Per-day series for the drawdown waterfall + per-day attribution on
+    # /strategies/:id. Each entry mirrors backtest/account.DailyRecord
+    # plus a running equity column so the SPA can chart equity-over-time
+    # without recomputing on the client.
+    running_eq = float(starting_balance)
+    daily: list[dict] = []
+    for d in acc.daily_records:
+        running_eq = d.end_balance  # end_balance is the snapshot; pre-computed
+        daily.append({
+            "day": d.day,
+            "start_balance": d.start_balance,
+            "end_balance": d.end_balance,
+            "realised_pnl": d.realised_pnl,
+            "pnl_pct": d.pnl_pct,
+            "n_trades": d.n_trades,
+            "profitable": d.profitable,
+            "equity": running_eq,
+        })
+
     return {
         "passes": (not summary["terminated"]
                    and summary["total_pnl_pct"] >= rules.min_withdraw_total_pct),
@@ -267,6 +286,10 @@ def _run_quick_rule(ir: dict[str, Any], rules: Rules,
         "profitable_days": summary["profitable_days"],
         "ending_balance": summary["ending_balance"],
         "hwm": summary["equity_hwm"],
+        # Per-day series (NEW): powers the drawdown waterfall + per-day
+        # equity chart on /strategies/:id. Optional in the API contract
+        # so cached older runs still deserialise cleanly.
+        "daily": daily,
         "config": {"ir_name": ir["name"], "shape": "quick-rule",
                    "symbol": symbol, "timeframe": timeframe},
     }

@@ -13,7 +13,9 @@ Body text (if present) shown as indented sub-bullets.
 
 ## 2026-05-16
 
-- **02:48 UTC** — fix(rules/getleveraged): replace provisional defaults with verbatim T&Cs (`ef8198c`) — 2 files
+- **06:17 UTC** — auto-sync: 2026-05-16 06:17 UTC (`5429e24`) — 1 file
+        M	ir/runner.py
+- **03:03 UTC** — fix(rules/getleveraged): replace provisional defaults with verbatim T&Cs (`c0ee01e`) — 2 files
     Operator pasted the real GetLeveraged Turbo objectives. Material
     differences from my earlier industry-default guesses:
       - Profit target:    8 % → 6 %
