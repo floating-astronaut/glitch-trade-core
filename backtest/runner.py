@@ -131,13 +131,20 @@ def _fetch_trades(
         where.append("t.symbol = ANY(%(symbols_in)s)")
         params["symbols_in"] = list(include_symbols)
 
+    # Ordering matters: VirtualAccount applies P&L at CLOSE time
+    # (record_close), and rolls UTC days based on the close timestamp.
+    # Ordering by opened_at caused trades that opened earlier but closed
+    # later to be processed before trades that opened later but closed
+    # earlier — which made _ensure_day oscillate between days and produce
+    # duplicate DailyRecord rows for the same date. Ordering by closed_at
+    # makes the day-roll loop monotonic; ties broken by id for determinism.
     sql = f"""
         SELECT t.id, t.opened_at, t.closed_at, t.bot_name AS bot, t.symbol,
                t.entry_price, t.sl_price AS sl, t.volume_lots AS lots,
                t.pnl AS realised_pnl, t.outcome, t.exit_reason
         FROM ml_trades t
         WHERE {' AND '.join(where)}
-        ORDER BY t.opened_at ASC, t.id ASC
+        ORDER BY t.closed_at ASC, t.id ASC
     """
     conn = psycopg2.connect(_ml_dsn(), cursor_factory=RealDictCursor)
     try:

@@ -137,10 +137,26 @@ class VirtualAccount:
         The simulator should consult this *before* applying a trade. It does
         not block on news/weekend — those are layered in `newsguard.py` and
         the day-roll logic; this only blocks on soft-halt + termination.
+
+        Day-roll: rolling here is required to free a new day's soft-halt
+        allowance. Without it, day 1's losing P&L vetoes every day 2 open,
+        no day-2 trade ever closes, and the daily roll never happens —
+        which silently truncates the entire replay after day 1. The
+        defensive guard in _ensure_day refuses backward rolls so an
+        open_ts that lives in a prior day (which is fine — trades are
+        ordered by close_ts) is treated as same-day instead of cascading
+        oscillating DailyRecord rows.
         """
         if self.terminated:
             return "account terminated"
-        if self.day_pnl <= -abs(self._day_open_balance * self.rules.soft_halt_daily_loss_pct):
+        self._ensure_day(ts)
+        # Soft-halt only fires when the firm/our-overlay actually sets a
+        # halt threshold. Treat 0 as "no halt" — otherwise day P&L ≤ -0
+        # would veto every opening on a losing day.
+        if (
+            self.rules.soft_halt_daily_loss_pct > 0
+            and self.day_pnl <= -abs(self._day_open_balance * self.rules.soft_halt_daily_loss_pct)
+        ):
             return f"soft-halt: day P&L {self.day_pnl_pct:.2%} ≤ -{self.rules.soft_halt_daily_loss_pct:.2%}"
         return None
 
@@ -173,9 +189,23 @@ class VirtualAccount:
                 equity=self.balance,
                 threshold=self.trailing_dd_threshold,
             )
+            # Emit a partial DailyRecord on termination so reports show
+            # the death day's activity (per-trade counts, P&L). Before
+            # this, an account that died on day 1 produced no daily
+            # records at all and reports rendered "(no daily records —
+            # no closed trades in window)" despite having logged trades.
+            self._archive_partial_day(ts)
             return
 
-        if self.balance <= self._day_open_balance - self._day_open_balance * self.rules.max_daily_loss_pct:
+        # Daily-loss breach — only enforced when the firm actually has a
+        # daily cap. Apex (and any future firm with no daily cap) sets
+        # max_daily_loss_pct = 0, which would otherwise fire on every
+        # losing trade because the inequality `balance ≤ day_open - 0`
+        # is true for any negative day P&L.
+        if (
+            self.rules.max_daily_loss_pct > 0
+            and self.balance <= self._day_open_balance - self._day_open_balance * self.rules.max_daily_loss_pct
+        ):
             self.breach = Breach(
                 at=ts,
                 rule="max_daily_loss",
@@ -186,6 +216,25 @@ class VirtualAccount:
                 equity=self.balance,
                 threshold=self._day_open_balance * (1 - self.rules.max_daily_loss_pct),
             )
+            self._archive_partial_day(ts)
+
+    def _archive_partial_day(self, ts: datetime) -> None:
+        """Emit a DailyRecord for the in-progress day. Used on
+        termination so reports + downstream sweep verdicts have the
+        death day's data."""
+        if self._current_day is None:
+            return
+        rec = DailyRecord(
+            day=self._current_day,
+            start_balance=self._day_open_balance,
+            end_balance=self.balance,
+            realised_pnl=self._day_realised_pnl,
+            n_trades=self._day_trade_count,
+            profitable=self._day_realised_pnl >= (
+                self.starting_balance * self.rules.min_profitable_day_pct
+            ),
+        )
+        self.daily_records.append(rec)
 
     def roll_day(self, end_of_day_ts: datetime) -> Optional[DailyRecord]:
         """Close the current day book and start a new one. Returns the
@@ -217,13 +266,20 @@ class VirtualAccount:
     # ── Internal ────────────────────────────────────────────────────────
 
     def _ensure_day(self, ts: datetime) -> None:
-        """Roll the day if the incoming timestamp is past the current day."""
+        """Roll the day if the incoming timestamp is past the current day.
+
+        Defensive: only ever roll FORWARD. If ts lives in a prior day
+        (which can happen if a caller passes an open_ts after we've
+        already rolled to a later close_ts), silently treat it as
+        same-day so the rest of the bookkeeping stays monotonic. The
+        runner orders by close_ts, but open_ts can still be earlier
+        than the previous close_ts."""
         d = ts.astimezone(timezone.utc).date().isoformat()
         if self._current_day is None:
             self._current_day = d
             self._day_open_balance = self.balance
             return
-        if d != self._current_day:
+        if d > self._current_day:
             self.roll_day(ts)
 
     # ── Reporting helpers ───────────────────────────────────────────────

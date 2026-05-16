@@ -110,6 +110,15 @@ def scale_trade(
     `sizing_base=min(starting_balance, current_balance)` to keep position
     size bounded by the *original* account size, which is the right
     behaviour for FundingPips-style accounts.
+
+    Cap semantics (the bit that catches the catastrophic case):
+      `scale = target / intended` assumes the live SL held — i.e. that
+      |realised_pnl| ≈ intended_risk. When the SL didn't hold (slippage,
+      no-SL strategy, manually-widened SL after entry), |realised_pnl|
+      can be many multiples of intended_risk, and scaling-up that
+      already-blown loss wipes the account in one trade. We always
+      verify `|scaled_pnl| ≤ cap` AFTER scaling, and bound it if not.
+      This is the layer that actually makes the prop-firm replay honest.
     """
     base = sizing_base if sizing_base is not None else balance
     target = base * rules.risk_per_trade_pct
@@ -118,10 +127,13 @@ def scale_trade(
     intended = estimate_trade_risk_usd(symbol, entry, sl, lots)
     if intended is None or intended <= 0:
         # We can't recover the intended SL distance — fall back to clamping
-        # by absolute pnl. A loss bigger than the cap is scaled down to it;
-        # otherwise leave it alone.
-        if realised_pnl < -cap:
-            scale = abs(cap / realised_pnl)
+        # by absolute pnl. ANY trade whose realised |pnl| exceeds the cap
+        # gets scaled down to it (both wins and losses). The earlier
+        # version only capped losses, which let a single big winner on a
+        # NULL-SL ml_trades row (often a bot exit-on-condition without a
+        # hard stop logged) compound into 8000%+ runs on the FTMO replay.
+        if abs(realised_pnl) > cap:
+            scale = cap / abs(realised_pnl)
             return SizingResult(
                 scale=scale,
                 scaled_pnl=realised_pnl * scale,
@@ -133,21 +145,43 @@ def scale_trade(
                             intended_risk=abs(realised_pnl),
                             target_risk=target, capped=False)
 
+    # Provisional scale assuming the SL held.
     scale = target / intended
-    # Hard cap on the upside too — never let a single trade risk more than
-    # `cap` even if the original SL was tight.
-    if intended * scale > cap:
-        scale = cap / intended
+    scaled_pnl = realised_pnl * scale
+
+    # Hard cap: the absolute $-loss after scaling must NEVER exceed the
+    # rules' hard cap. This is the line that closes the original bug —
+    # the previous check (intended*scale > cap) was mathematically
+    # vacuous: target<cap by construction, so the condition could only
+    # fire in pathological configs. We now check the actual scaled loss
+    # against the cap, which catches the realistic case where the SL
+    # slipped and the live engine's realised loss was many multiples
+    # of its intended risk.
+    if scaled_pnl < -cap:
+        new_scale = abs(cap / realised_pnl)
         return SizingResult(
-            scale=scale,
-            scaled_pnl=realised_pnl * scale,
+            scale=new_scale,
+            scaled_pnl=realised_pnl * new_scale,
             intended_risk=intended,
             target_risk=target,
             capped=True,
         )
+    # Symmetric upside cap — a freakishly tight SL on a runaway winner
+    # shouldn't compound into 50%-in-a-day either (consistency-rule
+    # breach risk + unrealistic). Same hard cap, opposite sign.
+    if scaled_pnl > cap:
+        new_scale = cap / realised_pnl
+        return SizingResult(
+            scale=new_scale,
+            scaled_pnl=realised_pnl * new_scale,
+            intended_risk=intended,
+            target_risk=target,
+            capped=True,
+        )
+
     return SizingResult(
         scale=scale,
-        scaled_pnl=realised_pnl * scale,
+        scaled_pnl=scaled_pnl,
         intended_risk=intended,
         target_risk=target,
         capped=False,
