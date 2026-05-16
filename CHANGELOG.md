@@ -13,7 +13,9 @@ Body text (if present) shown as indented sub-bullets.
 
 ## 2026-05-16
 
-- **06:17 UTC** — auto-sync: 2026-05-16 06:17 UTC (`5429e24`) — 1 file
+- **06:32 UTC** — auto-sync: 2026-05-16 06:32 UTC (`4606bc7`) — 1 file
+        A	dist/glitch_trade_core-0.1.0-py3-none-any.whl
+- **06:17 UTC** — auto-sync: 2026-05-16 06:17 UTC (`bb19131`) — 2 files
         M	ir/runner.py
 - **03:03 UTC** — fix(rules/getleveraged): replace provisional defaults with verbatim T&Cs (`c0ee01e`) — 2 files
     Operator pasted the real GetLeveraged Turbo objectives. Material
