@@ -11,9 +11,15 @@ Body text (if present) shown as indented sub-bullets.
 
 ---
 
+## 2026-05-17
+
+- **01:47 UTC** — auto-sync: 2026-05-17 01:47 UTC (`08bbacb`) — 2 files
+        M	backtest/account.py
+        M	backtest/rules/fundingpips_zero.py
+
 ## 2026-05-16
 
-- **11:32 UTC** — auto-sync: 2026-05-16 11:32 UTC (`4e769a8`) — 1 file
+- **11:32 UTC** — auto-sync: 2026-05-16 11:32 UTC (`dc6afc8`) — 2 files
         M	dist/glitch_trade_core-0.1.0-py3-none-any.whl
 - **11:17 UTC** — auto-sync: 2026-05-16 11:16 UTC (`30b3251`) — 4 files
         M	backtest/account.py

@@ -50,6 +50,24 @@ class FundingPipsZeroRules:
     soft_halt_daily_loss_pct: float = 0.02      # halt trading at -2 % day
                                                 # (1 % buffer before 3 % breach)
 
+    # Daily profit cap — the symmetric upside cousin of soft_halt_daily_loss_pct.
+    # When day P&L reaches +X % of day-open balance, stop opening new trades
+    # for the rest of the UTC day. Existing positions still close normally.
+    #
+    # The mechanical reason this matters on a trailing-DD firm: every winning
+    # day ratchets the equity HWM upward, which permanently tightens the
+    # trailing-DD floor. If you make +5 % on Monday, your account's "you-die-
+    # here" line jumps from $23,750 (5 % below $25,000) to $24,937 (5 % below
+    # the new $26,250 HWM) — and any normal -1 % drift on a flat Tuesday now
+    # eats most of your remaining buffer. Capping daily P&L keeps HWM growth
+    # gradual, which keeps the buffer wide. Also helpfully blocks the
+    # consistency-rule breach (best day ≤ 15 % of total profit) — if you
+    # cap at 1 % per day you can't have one day worth 71 % of total profit.
+    #
+    # Default 0.0 = no cap (preserves pre-cap behaviour for any existing
+    # consumer). Tuned FP-Zero-passing seed templates set this to ~0.015.
+    daily_profit_cap_pct: float = 0.0
+
     # Cached display name
     name: str = field(default="FundingPips Zero (instant-funded)")
 

@@ -158,6 +158,16 @@ class VirtualAccount:
             and self.day_pnl <= -abs(self._day_open_balance * self.rules.soft_halt_daily_loss_pct)
         ):
             return f"soft-halt: day P&L {self.day_pnl_pct:.2%} ≤ -{self.rules.soft_halt_daily_loss_pct:.2%}"
+        # Daily profit cap — symmetric upside of soft-halt. Keeps HWM growth
+        # gradual on a trailing-DD firm. `getattr` so rulesets that pre-date
+        # the field don't blow up (older saved IRs, third-party rulesets).
+        # 0 = disabled, preserves backward compat.
+        daily_profit_cap_pct = getattr(self.rules, "daily_profit_cap_pct", 0.0)
+        if (
+            daily_profit_cap_pct > 0
+            and self.day_pnl >= self._day_open_balance * daily_profit_cap_pct
+        ):
+            return f"profit-cap: day P&L {self.day_pnl_pct:.2%} ≥ +{daily_profit_cap_pct:.2%}"
         return None
 
     def record_close(self, ts: datetime, pnl: float) -> None:
