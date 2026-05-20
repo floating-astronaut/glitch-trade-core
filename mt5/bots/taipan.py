@@ -318,19 +318,6 @@ def send_webhook(payload):
     """Post event to dashboard webhook. Accepts {"status":"ok"} and {"status":"ok","duplicate":true} as success."""
     if not CONFIG.get('webhook_enabled', False):
         return False
-
-
-# ── Glitch trade-api ingest (new dashboard pipe) ────────────────────────
-# Disabled silently when GLITCH_API_KEY / GLITCH_MT5_LOGIN env vars aren't
-# set. Same wiring pattern across the bot family — see viper.py.
-from shared.glitch_ingest import GlitchIngestor   # noqa: E402
-_glitch_ingestor: GlitchIngestor | None = None
-
-def _ingest_init():
-    global _glitch_ingestor
-    if _glitch_ingestor is None:
-        _glitch_ingestor = GlitchIngestor.from_env(logger=logger)
-    return _glitch_ingestor
     try:
         payload.update({"bot": "taipan", "account": ACCOUNT_NUMBER,
             "timestamp": datetime.now(timezone.utc).isoformat()})
@@ -909,10 +896,7 @@ def strategy_loop():
     # Daily state per symbol: tracks Asian range + whether we already traded today
     daily_state = {}  # symbol -> {date, asian_high, asian_low, range_width, traded_today, atr}
 
-    ingestor = _ingest_init()
     while not bot_stop.is_set():
-        if ingestor is not None:
-            ingestor.maybe_tick()
         # PropFirmGuard update
         pfg = get_prop_guard()
         if pfg:
