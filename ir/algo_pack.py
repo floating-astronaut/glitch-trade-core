@@ -61,35 +61,34 @@ def _inject_credentials(
     ingest_base: str,
 ) -> str:
     """Replace credential placeholders in the compiled C# with the
-    caller's real values. We append a small `// glitch-credentials`
-    constants block at the top of the file if the markers don't
-    already appear in the source — older trend-shape templates
-    don't carry them and we want every emitted bundle to be
-    self-contained regardless of source template age."""
-    if _API_KEY_MARKER in cs_source:
-        out = cs_source.replace(_API_KEY_MARKER, api_key)
-        out = out.replace(_USER_ID_MARKER, user_id)
-        out = out.replace(_INGEST_BASE_MARKER, ingest_base)
-        return out
+    caller's real values.
 
-    # Marker-free template — prepend a constants block under the
-    # `using` section so the cBot can read it. The block is inert
-    # if the cBot itself doesn't reference it, so it's harmless on
-    # legacy templates and immediately useful on credential-aware
-    # ones (CBOT-DIST-2).
-    header = (
-        f"// === Glitch Executor credentials (injected per download) ===\n"
-        f"// User: {user_id}\n"
-        f"// Issued: {datetime.now(timezone.utc).isoformat()}\n"
-        f"namespace GlitchExecutorCredentials {{\n"
-        f"    public static class Credentials {{\n"
-        f"        public const string ApiKey = \"{api_key}\";\n"
-        f"        public const string UserId = \"{user_id}\";\n"
-        f"        public const string IngestBase = \"{ingest_base}\";\n"
-        f"    }}\n"
-        f"}}\n\n"
-    )
-    return header + cs_source
+    Templates carry a `GlitchExecutorCredentials.Credentials` static
+    class with `__GLITCH_API_KEY__` / `__GLITCH_USER_ID__` /
+    `__GLITCH_INGEST_BASE__` marker strings. The trend-follower
+    template ships with that block in place; quick-rule templates
+    will inherit it once they're credential-aware.
+
+    Older templates that lacked the marker block previously got a
+    namespace block prepended above their `using` directives — that
+    was invalid C# (namespaces can't precede `using`s in the same
+    file). The prepend path is dropped here; a template that lands
+    in the packer without the markers now raises rather than
+    silently emitting broken C#. CBOT-DIST-1's tests caught this
+    via runtime install errors; CBOT-DIST-2 retired the path.
+    """
+    if _API_KEY_MARKER not in cs_source:
+        raise ValueError(
+            "compiled cBot source lacks GlitchExecutorCredentials markers — "
+            "template must declare the GlitchExecutorCredentials namespace "
+            f"with {_API_KEY_MARKER} / {_USER_ID_MARKER} / "
+            f"{_INGEST_BASE_MARKER} placeholders. See the trend-follower "
+            "template for the canonical shape."
+        )
+    out = cs_source.replace(_API_KEY_MARKER, api_key)
+    out = out.replace(_USER_ID_MARKER, user_id)
+    out = out.replace(_INGEST_BASE_MARKER, ingest_base)
+    return out
 
 
 def _build_extension_json(

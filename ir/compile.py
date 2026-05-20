@@ -147,11 +147,30 @@ _QUICK_TEMPLATE = """\
 // =============================================================================
 
 using System;
+using System.Net.Http;
+using System.Text;
+using System.Threading.Tasks;
 using cAlgo.API;
+
+// ── Templated credentials (CBOT-DIST-1 / -2) ─────────────────────
+// algo_pack.py replaces the markers below with the operator's
+// API key / user id / ingest base at .algo download time. The
+// quick-rule cBot uses them to POST a 30 s heartbeat so the
+// Deployments matrix chip can read "live".
+namespace GlitchExecutorCredentials
+{{
+    public static class Credentials
+    {{
+        public const string ApiKey     = "__GLITCH_API_KEY__";
+        public const string UserId     = "__GLITCH_USER_ID__";
+        public const string IngestBase = "__GLITCH_INGEST_BASE__";
+    }}
+}}
 
 namespace cAlgo.Robots
 {{
-    [Robot(AccessRights = AccessRights.None, TimeZone = TimeZones.UTC)]
+    // AccessRights.FullAccess required for the heartbeat POST.
+    [Robot(AccessRights = AccessRights.FullAccess, TimeZone = TimeZones.UTC)]
     public class {class_name} : Robot
     {{
         [Parameter("Entry price",  DefaultValue = {entry_price}, Group = "Rule")]
@@ -166,8 +185,25 @@ namespace cAlgo.Robots
         [Parameter("Label",        DefaultValue = "{label}", Group = "Misc")]
         public string Label {{ get; set; }}
 
+        private static readonly HttpClient _http = new HttpClient
+        {{
+            Timeout = TimeSpan.FromSeconds(10),
+        }};
+        private const int HeartbeatIntervalSeconds = 30;
+        private DateTime _lastHeartbeatAt = DateTime.MinValue;
+
+        protected override void OnStart()
+        {{
+            SendHeartbeat();
+        }}
+
         protected override void OnTick()
         {{
+            if ((DateTime.UtcNow - _lastHeartbeatAt).TotalSeconds >= HeartbeatIntervalSeconds)
+            {{
+                SendHeartbeat();
+            }}
+
             var pos = Positions.Find(Label, SymbolName);
             if (pos == null)
             {{
@@ -182,6 +218,26 @@ namespace cAlgo.Robots
                 {{
                     ClosePosition(pos);
                 }}
+            }}
+        }}
+
+        private void SendHeartbeat()
+        {{
+            _lastHeartbeatAt = DateTime.UtcNow;
+            try
+            {{
+                var url = GlitchExecutorCredentials.Credentials.IngestBase + "/me/cbot/heartbeat";
+                var json = "{{\\"ctid_trader_account_id\\":" + Account.Number + "}}";
+                var req = new HttpRequestMessage(HttpMethod.Post, url);
+                req.Headers.Add("Authorization", "Bearer " + GlitchExecutorCredentials.Credentials.ApiKey);
+                req.Content = new StringContent(json, Encoding.UTF8, "application/json");
+                _http.SendAsync(req)
+                     .ContinueWith(t => {{ var _ = t.Exception; }},
+                                   TaskContinuationOptions.OnlyOnFaulted);
+            }}
+            catch (Exception)
+            {{
+                // never crash trading loop on heartbeat failure
             }}
         }}
     }}

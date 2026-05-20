@@ -23,13 +23,37 @@
 // =============================================================================
 
 using System;
+using System.Net.Http;
+using System.Text;
+using System.Threading.Tasks;
 using cAlgo.API;
 using cAlgo.API.Indicators;
 using cAlgo.API.Internals;
 
+// ── Templated credentials (CBOT-DIST-1 / -2) ─────────────────────
+// algo_pack.py's `_inject_credentials` replaces the marker strings
+// below with the operator's freshly-minted API key, user id, and
+// ingest-base URL at .algo download time. Standalone the template
+// still compiles — heartbeats POST to the placeholder URL and
+// silently fail.
+namespace GlitchExecutorCredentials
+{
+    public static class Credentials
+    {
+        public const string ApiKey     = "__GLITCH_API_KEY__";
+        public const string UserId     = "__GLITCH_USER_ID__";
+        public const string IngestBase = "__GLITCH_INGEST_BASE__";
+    }
+}
+
 namespace cAlgo.Robots
 {
-    [Robot(AccessRights = AccessRights.None, TimeZone = TimeZones.UTC,
+    // AccessRights.FullAccess is required so the cBot can POST a
+    // 30 s heartbeat to /v1/me/cbot/heartbeat (CBOT-DIST-2). cTrader
+    // Desktop will show a one-time install warning that the cBot
+    // needs network + filesystem access; the install guide
+    // (CBOT-DIST-3, Settings → cBot Setup) explains why.
+    [Robot(AccessRights = AccessRights.FullAccess, TimeZone = TimeZones.UTC,
            AddIndicators = true)]
     public class GlitchTrendFollowerBot : Robot
     {
@@ -99,6 +123,18 @@ namespace cAlgo.Robots
         private double _dayOpenBalance;
         private bool _haltedToday;
 
+        // ── Heartbeat plumbing (CBOT-DIST-2) ─────────────────────
+        // Static HttpClient — one socket pool for the lifetime of
+        // the cBot, avoids the per-call connection thrash that
+        // bites short-lived HttpClient instances. cAlgo runs each
+        // cBot in its own process, so static is process-local.
+        private static readonly HttpClient _http = new HttpClient
+        {
+            Timeout = TimeSpan.FromSeconds(10),
+        };
+        private const int HeartbeatIntervalSeconds = 30;
+        private DateTime _lastHeartbeatAt = DateTime.MinValue;
+
         protected override void OnStart()
         {
             _sma = Indicators.SimpleMovingAverage(Bars.ClosePrices, SmaPeriod);
@@ -109,6 +145,51 @@ namespace cAlgo.Robots
             _currentUtcDay = Server.Time.Date;
             _dayOpenBalance = Account.Balance;
             _haltedToday = false;
+
+            // First heartbeat fires immediately so the operator sees
+            // the cBot come alive in the matrix the moment they hit
+            // Start. Subsequent ticks are throttled by
+            // HeartbeatIntervalSeconds in OnTick below.
+            SendHeartbeat();
+        }
+
+        protected override void OnTick()
+        {
+            // cTrader fires OnTick on every quote — far too noisy for a
+            // 30s heartbeat. We throttle by wall-clock here rather than
+            // using cAlgo's Timer API so the call doesn't run on cAlgo's
+            // UI thread.
+            if ((DateTime.UtcNow - _lastHeartbeatAt).TotalSeconds >= HeartbeatIntervalSeconds)
+            {
+                SendHeartbeat();
+            }
+        }
+
+        private void SendHeartbeat()
+        {
+            _lastHeartbeatAt = DateTime.UtcNow;
+            try
+            {
+                var url = GlitchExecutorCredentials.Credentials.IngestBase + "/me/cbot/heartbeat";
+                var json = "{\"ctid_trader_account_id\":" + Account.Number + "}";
+                var req = new HttpRequestMessage(HttpMethod.Post, url);
+                req.Headers.Add("Authorization", "Bearer " + GlitchExecutorCredentials.Credentials.ApiKey);
+                req.Content = new StringContent(json, Encoding.UTF8, "application/json");
+
+                // Fire-and-forget — never block the cBot's OnTick on
+                // network. Any non-200 is silently ignored; the matrix
+                // chip will simply read "Xm ago" until the next
+                // successful call.
+                _http.SendAsync(req)
+                     .ContinueWith(t => { var _ = t.Exception; },
+                                   TaskContinuationOptions.OnlyOnFaulted);
+            }
+            catch (Exception)
+            {
+                // Network unavailable, bad token, etc. — never crash
+                // the cBot for a heartbeat failure. The trading loop
+                // must keep running.
+            }
         }
 
         protected override void OnBar()
