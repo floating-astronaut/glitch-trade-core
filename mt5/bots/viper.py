@@ -573,6 +573,24 @@ def send_webhook(payload):
         logger.debug(f"[WEBHOOK] Failed: {e}")
         return False
 
+
+# ── Glitch trade-api ingest (new dashboard pipe) ────────────────────────
+# Disabled silently when GLITCH_API_KEY / GLITCH_MT5_LOGIN env vars
+# aren't set, so existing deployments don't need re-config. When set,
+# pushes balance/equity/positions every 30s to the new ingest endpoint;
+# the legacy `send_webhook` above is kept for trade-close events that
+# the admin dashboard still consumes. Both can coexist until the admin
+# pipeline is fully retired.
+from shared.glitch_ingest import GlitchIngestor   # noqa: E402
+_glitch_ingestor: GlitchIngestor | None = None
+
+def _ingest_init():
+    """Called once per process. Idempotent."""
+    global _glitch_ingestor
+    if _glitch_ingestor is None:
+        _glitch_ingestor = GlitchIngestor.from_env(logger=logger)
+    return _glitch_ingestor
+
 # ============================================================================
 # INDICATORS
 # ============================================================================
@@ -1281,7 +1299,15 @@ def strategy_loop():
     _mt5_fail_count = 0
     MT5_RECONNECT_THRESHOLD = 3
 
+    # Initialise the trade-api ingest pipe. Throttled internally
+    # (30s default); we just call .maybe_tick() each loop and it
+    # handles the gating. Returns None silently when env vars
+    # missing — bot keeps running.
+    ingestor = _ingest_init()
+
     while not bot_stop.is_set():
+        if ingestor is not None:
+            ingestor.maybe_tick()
         # PropFirmGuard update
         pfg = get_prop_guard()
         if pfg:

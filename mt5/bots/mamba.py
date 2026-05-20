@@ -420,6 +420,19 @@ WEBHOOK_URL = "https://dashboard.glitchexecutor.com/api/trades/webhook"
 def send_webhook(payload):
     if not CONFIG.get('webhook_enabled', False):
         return False
+
+
+# ── Glitch trade-api ingest (new dashboard pipe) ────────────────────────
+# Disabled silently when GLITCH_API_KEY / GLITCH_MT5_LOGIN env vars aren't
+# set. Same wiring pattern across the bot family — see viper.py.
+from shared.glitch_ingest import GlitchIngestor   # noqa: E402
+_glitch_ingestor: GlitchIngestor | None = None
+
+def _ingest_init():
+    global _glitch_ingestor
+    if _glitch_ingestor is None:
+        _glitch_ingestor = GlitchIngestor.from_env(logger=logger)
+    return _glitch_ingestor
     try:
         payload.update({"bot": "mamba", "account": ACCOUNT_NUMBER,
             "timestamp": datetime.now(timezone.utc).isoformat()})
@@ -829,7 +842,10 @@ def strategy_loop():
     _mt5_fail_count = 0
     MT5_RECONNECT_THRESHOLD = 3
 
+    ingestor = _ingest_init()
     while not bot_stop.is_set():
+        if ingestor is not None:
+            ingestor.maybe_tick()
         # PropFirmGuard update
         pfg = get_prop_guard()
         if pfg:
