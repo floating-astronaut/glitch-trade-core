@@ -21,6 +21,12 @@ class FundingPipsZeroRules:
     # ── Hard breaches (account immediately terminated) ──────────────────
     max_daily_loss_pct: float = 0.03            # 3 % of day-open balance
     max_trailing_dd_pct: float = 0.05           # 5 % off highest equity
+    # Trailing drawdown — pegs to running HWM, never ratchets down.
+    # Sibling rule files set this explicitly (FTMO/MFF/The5ers are
+    # static; Apex + GetLeveraged are also trailing). Naming this
+    # explicitly here closes the field-set drift the trade-api
+    # firm_catalogue audit (2026-05-20) surfaced.
+    drawdown_is_static: bool = False
 
     # ── Payout / withdrawal rules ───────────────────────────────────────
     profit_cushion_pct: float = 0.03            # first 3 % is locked,

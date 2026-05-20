@@ -11,9 +11,40 @@ Body text (if present) shown as indented sub-bullets.
 
 ---
 
+## 2026-05-20
+
+- **10:01 UTC** — auto-sync: 2026-05-20 10:01 UTC (`382a651`) — 2 files
+        M	backtest/rules/fundingpips_zero.py
+        M	dist/glitch_trade_core-0.1.0-py3-none-any.whl
+- **08:25 UTC** — feat(cbot): trend + quick templates POST heartbeat; algo_pack marker-only (`e559048`) — 3 files
+    Closes the cBot loop for CBOT-DIST-2. The .algo bundles now actually
+    ping /v1/me/cbot/heartbeat every 30 s, so the Deployments matrix
+    chip can go from 'no cBot' (still the default) to 'just now' once
+    the customer installs.
+    Trend-follower template (ctrader-store/.../GlitchTrendFollowerBot.cs):
+    - Robot attribute AccessRights: None → FullAccess (network required;
+      one-time install warning explained in CBOT-DIST-3 setup guide).
+    - Imports System.Net.Http, System.Text, System.Threading.Tasks.
+    - Templated 'GlitchExecutorCredentials' namespace with marker
+      placeholders (__GLITCH_API_KEY__ / __GLITCH_USER_ID__ /
+
+## 2026-05-19
+
+- **14:56 UTC** — feat(ir): algo_pack.py — keyed .algo bundle builder (`8538f35`) — 1 file
+    CBOT-DIST-1 packer. Wraps compile_ir output into a cTrader
+    Desktop-installable .algo zip with operator credentials baked in.
+    - New module ir/algo_pack.py with pack_algo(ir, api_key, user_id,
+      ingest_base, version) -> {shape, filename, bytes, size_bytes,
+      cs_filename}.
+    - Bundle layout: extension.json (manifest) + source/<file>.cs
+      (with credentials inlined) + README.txt (install steps).
+    - Credential injection: replaces __GLITCH_API_KEY__ /
+      __GLITCH_USER_ID__ / __GLITCH_INGEST_BASE__ markers if present in
+      source; otherwise prepends a static GlitchExecutorCredentials
+
 ## 2026-05-17
 
-- **01:47 UTC** — auto-sync: 2026-05-17 01:47 UTC (`08bbacb`) — 2 files
+- **01:47 UTC** — auto-sync: 2026-05-17 01:47 UTC (`bb76a8d`) — 3 files
         M	backtest/account.py
         M	backtest/rules/fundingpips_zero.py
 
