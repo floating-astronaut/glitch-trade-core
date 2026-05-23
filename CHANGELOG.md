@@ -13,7 +13,9 @@ Body text (if present) shown as indented sub-bullets.
 
 ## 2026-05-23
 
-- **17:48 UTC** — auto-sync: 2026-05-23 17:48 UTC (`a1023d2`) — 3 files
+- **18:03 UTC** — auto-sync: 2026-05-23 18:03 UTC (`71041aa`) — 1 file
+        A	backtest/bar_replay/ab_test.py
+- **17:48 UTC** — auto-sync: 2026-05-23 17:48 UTC (`a926690`) — 4 files
         M	backtest/bar_replay/sim.py
         M	backtest/rules/fundingpips_zero.py
         M	dist/glitch_trade_core-0.1.0-py3-none-any.whl
