@@ -11,9 +11,29 @@ Body text (if present) shown as indented sub-bullets.
 
 ---
 
+## 2026-05-23
+
+- **17:48 UTC** — auto-sync: 2026-05-23 17:48 UTC (`a1023d2`) — 3 files
+        M	backtest/bar_replay/sim.py
+        M	backtest/rules/fundingpips_zero.py
+        M	dist/glitch_trade_core-0.1.0-py3-none-any.whl
+
 ## 2026-05-20
 
-- **10:01 UTC** — auto-sync: 2026-05-20 10:01 UTC (`382a651`) — 2 files
+- **19:43 UTC** — Revert "feat(mt5): wire bots into trade-api /v1/ingest/snapshot" (`771a598`) — 6 files
+    This reverts commit 96e9fe6a34f693cd40db0fca76356209926aabb8.
+- **12:59 UTC** — feat(mt5): wire bots into trade-api /v1/ingest/snapshot (`96e9fe6`) — 6 files
+    The MT5 bots' legacy webhook (dashboard.glitchexecutor.com/api/
+    trades/webhook) only fires on trade close, and it points at the
+    admin-api pipeline being retired. The new trade-api ingest is a
+    heartbeat — every 30s the bot pushes balance/equity/positions so
+    the Challenge page renders live, breach alerts fire, and the
+    canonical firm catalogue actually has data to compare against.
+    New module: mt5/shared/glitch_ingest.py
+      - `GlitchIngestor` — throttled MT5-state → /v1/ingest/snapshot
+        uploader.
+      - `from_env(logger)` factory; returns None silently when
+- **10:01 UTC** — auto-sync: 2026-05-20 10:01 UTC (`faaaa9a`) — 3 files
         M	backtest/rules/fundingpips_zero.py
         M	dist/glitch_trade_core-0.1.0-py3-none-any.whl
 - **08:25 UTC** — feat(cbot): trend + quick templates POST heartbeat; algo_pack marker-only (`e559048`) — 3 files

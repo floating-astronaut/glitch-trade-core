@@ -53,8 +53,8 @@ class FundingPipsZeroRules:
     # blowing daily / trailing DD on their own.
     risk_per_trade_pct: float = 0.005           # target $-risk per trade
     risk_per_trade_pct_hard_cap: float = 0.01   # absolute ceiling
-    soft_halt_daily_loss_pct: float = 0.02      # halt trading at -2 % day
-                                                # (1 % buffer before 3 % breach)
+    soft_halt_daily_loss_pct: float = 0.025     # halt trading at -2.5 % day
+                                                # (0.5 % buffer before 3 % breach)
 
     # Daily profit cap — the symmetric upside cousin of soft_halt_daily_loss_pct.
     # When day P&L reaches +X % of day-open balance, stop opening new trades
@@ -70,9 +70,10 @@ class FundingPipsZeroRules:
     # consistency-rule breach (best day ≤ 15 % of total profit) — if you
     # cap at 1 % per day you can't have one day worth 71 % of total profit.
     #
-    # Default 0.0 = no cap (preserves pre-cap behaviour for any existing
-    # consumer). Tuned FP-Zero-passing seed templates set this to ~0.015.
-    daily_profit_cap_pct: float = 0.0
+    # Default 0.015 = cap daily wins at 1.5 % to prevent aggressive HWM
+    # ratcheting on trailing-DD firms. Previously 0.0 (no cap) which made
+    # the 5 % trailing floor tighten unrealistically fast.
+    daily_profit_cap_pct: float = 0.015
 
     # Cached display name
     name: str = field(default="FundingPips Zero (instant-funded)")

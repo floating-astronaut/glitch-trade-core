@@ -49,7 +49,6 @@ def run_sim(cfg: SimConfig) -> dict:
     point_value = POINT_VALUE_USD_PER_LOT.get(cfg.symbol, 100_000.0)
     start_ts = bars["t"][0].astype("M8[s]").astype("O").replace(tzinfo=timezone.utc)
     acc = VirtualAccount(cfg.starting_balance, cfg.rules, start_ts=start_ts)
-    target_risk = cfg.starting_balance * cfg.rules.risk_per_trade_pct
 
     trades_done = 0
     trades_capped = 0
@@ -71,13 +70,15 @@ def run_sim(cfg: SimConfig) -> dict:
 
         # Convert PRICE-units PnL → $-PnL using a position size that targets
         # `target_risk` at the trade's SL distance.
+        # Use current balance so profitable strategies compound position size.
         sl_distance = abs(result.entry - result.sl_at_entry)
         if sl_distance <= 0: continue
+        target_risk = acc.balance * cfg.rules.risk_per_trade_pct
         # lots required to make sl_distance × point_value × lots == target_risk
         lots = target_risk / (sl_distance * point_value)
         # Hard cap so a freak SL doesn't trigger the position-sizer to size up
         # arbitrarily — never risk more than the rules' hard cap.
-        max_lots = (cfg.starting_balance * cfg.rules.risk_per_trade_pct_hard_cap) \
+        max_lots = (acc.balance * cfg.rules.risk_per_trade_pct_hard_cap) \
                    / (sl_distance * point_value)
         if lots > max_lots:
             lots = max_lots
