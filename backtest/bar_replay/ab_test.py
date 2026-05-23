@@ -30,11 +30,11 @@ def main() -> int:
 
     rng = random.Random(42)
 
-    def random_cfg(rules):
+    def random_cfg():
         return SimConfig(
             symbol=symbol,
             timeframe="h1",
-            rules=rules,
+            rules=new_rules,  # placeholder, replaced below
             manager=ManagerParams(
                 sl_atr_mult=rng.uniform(0.8, 3.0),
                 tp1_r=rng.uniform(0.6, 2.5),
@@ -49,11 +49,12 @@ def main() -> int:
     new_results = []
 
     for i in range(n):
-        cfg_old = random_cfg(old_rules)
-        cfg_new = random_cfg(new_rules)
+        base = random_cfg()
+        old_cfg = replace(base, rules=old_rules)
+        new_cfg = replace(base, rules=new_rules)
 
-        old_results.append(run_sim(cfg_old))
-        new_results.append(run_sim(cfg_new))
+        old_results.append(run_sim(old_cfg))
+        new_results.append(run_sim(new_cfg))
 
     def summarize(label, results):
         terminated = sum(1 for r in results if r["terminated"])
@@ -74,8 +75,25 @@ def main() -> int:
         1 for o, n in zip(old_results, new_results)
         if o["passes"] and not n["passes"]
     )
-    print(f"\nNEW pass / OLD fail: {new_pass_old_fail}")
-    print(f"OLD pass / NEW fail: {old_pass_new_fail}")
+    both_alive = sum(
+        1 for o, n in zip(old_results, new_results)
+        if not o["terminated"] and not n["terminated"]
+    )
+    print(f"\nBoth alive:           {both_alive}")
+    print(f"NEW pass / OLD fail:  {new_pass_old_fail}")
+    print(f"OLD pass / NEW fail:  {old_pass_new_fail}")
+
+    # Show a few configs where NEW survived longer or made more
+    deltas = [
+        (i, n["total_pnl_pct"] - o["total_pnl_pct"], n["trades"] - o["trades"], n["terminated"] - o["terminated"])
+        for i, (o, n) in enumerate(zip(old_results, new_results))
+    ]
+    deltas.sort(key=lambda x: x[1], reverse=True)
+    print("\nTop 5 improvements (NEW pnl - OLD pnl):")
+    for i, dpnl, dtrades, dterm in deltas[:5]:
+        o = old_results[i]
+        n = new_results[i]
+        print(f"  cfg {i:2d}: pnl {o['total_pnl_pct']:+.2f}% → {n['total_pnl_pct']:+.2f}% (Δ{dpnl:+.2f}%), trades {o['trades']}→{n['trades']}, term {o['terminated']}→{n['terminated']}")
 
     return 0
 
