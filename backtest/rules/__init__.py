@@ -14,12 +14,14 @@ from .mff              import MFF_EVALUATION,    MFFEvaluationRules
 from .apex             import APEX_DRAWDOWN_ZERO, ApexDrawdownZeroRules
 from .the5ers          import THE5ERS_HIGH_STAKES, The5ersHighStakesRules
 from .getleveraged     import GETLEVERAGED_TURBO, GetLeveragedTurboRules
+from .fundednext       import FUNDEDNEXT_EVALUATION, FundedNextEvaluationRules
 
 # Generic alias used by the simulator + sweep so we don't have to bind to
 # one concrete dataclass name.
 Rules = Union[
     FundingPipsZeroRules, FTMOChallengeRules, MFFEvaluationRules,
     ApexDrawdownZeroRules, The5ersHighStakesRules, GetLeveragedTurboRules,
+    FundedNextEvaluationRules,
 ]
 
 # Lookup table for CLI use (--ruleset flag).
@@ -30,6 +32,7 @@ RULESETS: dict[str, Rules] = {
     "apex":              APEX_DRAWDOWN_ZERO,
     "the5ers":           THE5ERS_HIGH_STAKES,
     "getleveraged_turbo": GETLEVERAGED_TURBO,
+    "fundednext":        FUNDEDNEXT_EVALUATION,
 }
 
 __all__ = [
@@ -39,5 +42,6 @@ __all__ = [
     "APEX_DRAWDOWN_ZERO",   "ApexDrawdownZeroRules",
     "THE5ERS_HIGH_STAKES",  "The5ersHighStakesRules",
     "GETLEVERAGED_TURBO",   "GetLeveragedTurboRules",
+    "FUNDEDNEXT_EVALUATION", "FundedNextEvaluationRules",
     "Rules", "RULESETS",
 ]
